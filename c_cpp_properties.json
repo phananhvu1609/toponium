@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "C:/Users/_MY_FILES_/career/Physics/my_paper/ALPs-in-ttbar/code/test",
+                "C:/Users/_MY_FILES_/career/Physics/my_paper/ALPs-in-ttbar/code/hadronic-observables/include",
+                "C:/Users/_MY_FILES_/career/Physics/my_paper/ALPs-in-ttbar/code/hadronic-observables",
+                "${workspaceFolder}/include"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "compilerPath": "C:\\cygwin64\\bin\\gcc.exe",
+            "cStandard": "gnu17",
+            "cppStandard": "gnu++17",
+            "intelliSenseMode": "linux-gcc-x64"
+        }
+    ],
+    "version": 4
+}

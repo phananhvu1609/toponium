@@ -1,0 +1,31 @@
+# Note:
+# . Format of each line: '[PARAMETER]  [VALUE]' or '[PARAMETER]  [VALUE1]  [VALUE2] ...'.
+# . Lines starting with '#' are skipped.
+# . If a line for a [PARAMETER] is not provided, the default value will be taken.
+##########################################################################################
+# ======================================== General setup
+PDFSetName              NNPDF31_nnlo_as_0118_notop
+PDFmember               0
+Order                   NLO
+# ======================================== Configuration for output (mttbar in GeV)
+OutputFolder            output
+mttbarmin               335
+mttbarmax               380
+mttbarstep              0.1
+# ======================================== mt (in GeV), TopDecayWidth (in GeV), muF and muR (in mt), muF goes into PDF, muR goes into loop integration. Default value taken in accordance with arXiv:1701.06228. scales are overwritten by dynamicscalechoice
+Mtop                    172.5
+TopDecayWidth           1.326
+muF                     1.0
+muR                     1.0
+# ======================================== Other SM physics parameters (energy in GeV, alphaS at MZ, alphaS is overwritten by PDF)
+EbeamCM                 6500
+alphaS                  0.118
+MZ                      91.2
+vev                     246.22
+# ======================================== Options for integration
+RelativeError           1e-2
+MaxNumberSubintervals   100
+# ======================================== Other configurations (debug = 0 (no test), 1 (test, no debug), 2 (print debug); is[DoSomething] = 0 (don't do), 1 (do); DynamicScalingChoice = 0 (fixed scale), 2 (half sum transverse mass of final particles)); Vary muF (or muR) between ScaleUncertainty[0]*mu and ScaleUncertainty[1]*mu
+debug                   2
+DynamicScalingChoice    0
+ScaleUncertainty        0.5     2
