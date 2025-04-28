@@ -7,11 +7,11 @@
 PDFSetName              NNPDF31_nnlo_as_0118_notop
 PDFmember               0
 Order                   NLO
-# ======================================== Configuration for output (mttbar in GeV)
+# ======================================== Configuration for output (mttbar in GeV) 335,380
 OutputFolder            output
-mttbarmin               335
-mttbarmax               380
-mttbarstep              0.1
+mttbarmin               360
+mttbarmax               360
+mttbarstep              1
 # ======================================== mt (in GeV), TopDecayWidth (in GeV), muF and muR (in mt), muF goes into PDF, muR goes into loop integration. Default value taken in accordance with arXiv:1701.06228. scales are overwritten by dynamicscalechoice
 Mtop                    172.5
 TopDecayWidth           1.326

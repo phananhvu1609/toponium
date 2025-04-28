@@ -43,7 +43,7 @@ double dxsection_dcosthetaCM_ggttTree(double alphaS, double mt, double s, double
 double dxsection_dcosthetaCM_ggttTree_components(double alphaS, double mt, double s, double costhetaCM, double ts = 1, double tt = 1, double tu = 1);
 
 // Toponium
-double dxsect_dmToponium_partonic(int pid1, int pid2, double s_parton, double mtt, double ScaleFactorization, double ScaleRenormalization, double mt, double TopDecayWidth, double boundstateSpin, double boundstateJ, int boundstateColorConfig, LHAPDF::PDF* pdf);
+double F_hardfactor(int pid1, int pid2, double s_parton, double mtt, double alphaS, double ScaleRenormalization, double ScaleFactorization, double boundstateSpin, double boundstateJ, int boundstateColorConfig, double CF, double CA, double TF, bool is_two_to_one, bool is_subtract = false);
 double ImGreenFunction(double mtt, double mt, double TopDecayWidth, double alphaS, double CF, double CA, int boundstateColorConfig);
 
 #endif

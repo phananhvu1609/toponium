@@ -238,7 +238,8 @@ int main() {
 	double s_hadron = mypow(EbeamCM*2,2);
 	double s_min = mypow(mttbarmin,2);
 	int pidg = 21;
-	int pidq[] = {1,2,3,4};
+	const size_t pidq_length = 5, pidquark_length = 10;
+	int pidq[] = {1,2,3,4,5,6}, pidquark[pidquark_length] = {-5,-4,-3,-2,-1,1,2,3,4,5};
 	double alphaS_muR = pdf->alphasQ(ScaleRenormalization);
 	cout << "[INFO] alphaS(muR = " << ScaleRenormalization << " GeV) = " << alphaS_muR << " shall be used for fixed scale calculations, unless otherwise stated." << endl;
 	double ScaleUncertaintyFactor[3] = {1,ScaleUncertainty[0],ScaleUncertainty[1]};
@@ -278,10 +279,11 @@ int main() {
 		filesystem::create_directory(OutputFolder + "/test/" + datestring);
 		t_start = chrono::high_resolution_clock::now();
 		cout << ".................. Tests start .................." << endl;
-		double alphaS_muR = 0.107655, mt = 172.5, ScaleFactorization = mt, ScaleRenormalization = mt, costhetamin = -1, costhetamax = 1, EbeamCM = 6500, s_hadron = mypow(2.*EbeamCM,2), Ctt = 1, fa = 1000, Ma = 1e-3, s = mypow(400.,2), vev = 246.22, MZ = 91.2, Cggtilde_at_Lambda = 0;
+		double alphaS_muR = 0.107655, mt = 172.5, ScaleFactorization = mt, ScaleRenormalization = mt, costhetamin = -1, costhetamax = 1, EbeamCM = 6500, s_hadron = mypow(2.*EbeamCM,2), s = mypow(400.,2), vev = 246.22, MZ = 91.2;
+		double TopDecayWidth = 1.326;
 		int count_error = 0;
 		cout << "   Default parameters: alphaS(muR) = " << alphaS_muR << ", mt = " << mt << ", muF = " << ScaleFactorization << ", muR = " << ScaleRenormalization << ", costhetamin = " << costhetamin << ", costhetamax = " << costhetamax << ", EbeamCM = " << EbeamCM << "," << endl;
-		cout << "                       Ctt = " << Ctt << ", fa = " << fa << ", Ma = " << Ma << ", Cggtilde(4*pi*fa) = " << Cggtilde_at_Lambda << ", s_parton = (" << sqrt(s) << " GeV)^2, MZ = " << MZ << " GeV, vev = " << vev << " GeV." << endl;
+		cout << "                       s_parton = (" << sqrt(s) << " GeV)^2, MZ = " << MZ << " GeV, vev = " << vev << " GeV." << endl;
 
 
 		// ============ reproduce xf(x,mu) plot in fig 3.1, 1706.00428 ============
@@ -313,6 +315,40 @@ int main() {
 					f.close();
 				}
 			}
+		}
+		// Check gluon PDF
+		{
+			const double q2 = mypow(mt,2);
+			const double DX = 0.01;
+			const double MAXLOGX = 0;
+			const double MINLOGX = -5;
+			const int NX = (int) floor((MAXLOGX - MINLOGX)/DX) + 1;
+			int pid = 21;
+			const string spid = lexical_cast<string>(pid);
+			const string sq2 = lexical_cast<string>(q2);
+			const string smem = lexical_cast<string>(PDFmember);
+			filesystem::create_directory(OutputFolder + "/test/q2-" + sq2);
+			const string filename = OutputFolder + "/test/" + "q2-" + sq2 + "/"+ PDFSetName + "_" + smem + "_" + spid + ".dat";
+			const string filename2 = OutputFolder + "/test/" + "q2-" + sq2 + "/integrated_PDF_"+ PDFSetName + "_" + smem + "_" + spid + ".dat";
+			
+			ofstream f(filename.c_str());
+			f << "# x \t f" << endl;
+			for (int ix = 0; ix < NX; ix++) {
+				const double log10x = (MINLOGX + ix*DX < -1e-3) ? MINLOGX + ix*DX : 0;	// if log10x is > -1e-3, set log10x = 0
+				const double x = pow(10, log10x);
+				const double xf = pdf->xfxQ2(pid, x, q2);
+				f << x << " " << xf/x << endl;
+			}
+			f.close();
+			ofstream f2(filename2.c_str());
+			f2 << "# s_parton \t integrated f" << endl;
+			for (double mtt = 300.; mtt <= sqrt(s_hadron); mtt += (mtt < 400. ? 1e-2 : mtt < 1000 ? 1e-1 : 1)) {
+				double s_parton = mypow(mtt,2);
+				double error;
+				double result = Integrated_x1_PDF_Product(w2,pdf,pid,pid,s_parton,s_hadron,sqrt(q2),error,RelativeError,MaxNumberSubintervals);
+				f2 << s_parton << " " << result << endl;
+			}
+			f2.close();
 		}
 
 
@@ -358,7 +394,7 @@ int main() {
 			int pid = 21;
 			struct ParamPDF pPDF = {pid,pid,ScaleFactorization,NAN,s_hadron};
 			struct IntegratePDF iPDF = {pdf,pPDF,w1,RelativeError,MaxNumberSubintervals};
-			struct ParamXsection pXsection = {pid,pid,NAN,alphaS_muR,mt,ScaleRenormalization,0,fa,Ma};
+			struct ParamXsection pXsection = {pid,pid,NAN,alphaS_muR,mt,ScaleRenormalization};
 			struct IntegrateXsection iXsection = {"xsection_ggttTree",pXsection,w1,costhetamin,costhetamax,"",RelativeError,MaxNumberSubintervals};
 			result = Convolute_PDF_1D(iPDF,iXsection,error,w2,xmin,RelativeError,MaxNumberSubintervals)*invGeV2topb;
 			streamsize p = cout.precision();
@@ -372,13 +408,252 @@ int main() {
 				count_error++;
 			}
 		}
+		// Convolute luminosity with hard function. Check with table 2 in 0812.0919
+		{
+			double mttbar = 2*mt, ScaleRenormalization = mt, ScaleFactorization = mt;
+			double CF = 4./3.;	// Casimir operator for fundamental representation
+			double CA = 3.;	// Casimir operator for adjoint representation
+			double SoftScaleRenormalization = mt*CF*alphaS;
+			const size_t ScaleUncertainty_count = 3;
+			double ScaleUncertaintyFactor[ScaleUncertainty_count] = {1,2,4};
+			double alphaS_Soft = pdf->alphasQ(SoftScaleRenormalization);
+			double ImGFactor_octet = ImGreenFunction(mttbar,mt,TopDecayWidth,alphaS_Soft, CF, CA, 8) * invGeV2topb / mypow(mt,2) / mttbar;
+			double ImGFactor_singlet = ImGreenFunction(mttbar,mt,TopDecayWidth,alphaS_Soft, CF, CA, 1) * invGeV2topb / mypow(mt,2) / mttbar;
+			struct ParamPDF pPDF = {pidg,pidg,ScaleFactorization,NAN,s_hadron};
+			struct IntegratePDF iPDF = {pdf,pPDF,w1,RelativeError,MaxNumberSubintervals};
+			struct ParamXsection pXsection = {pidg,pidg,NAN,alphaS_muR,mt,ScaleRenormalization,false,NAN,MZ,vev};
+			struct IntegrateXsection iXsection = {"",pXsection,w1,NAN,NAN,"",RelativeError,MaxNumberSubintervals};
+			iPDF.InternalError = InternalRelativeError;
+			iXsection.workspace2 = w2;
+			struct ParamConvolute1D pConvolute(iPDF,iXsection);
+			pConvolute.set_TopDecayWidth(TopDecayWidth);
+			// gg > 1S_0^[1]
+			pConvolute.set_Scale(ScaleRenormalization);
+			pConvolute.setPID(pidg,pidg);
+			pConvolute.set_boundstate(0,0,1);
+			{
+				double result[ScaleUncertainty_count];
+				double expected[ScaleUncertainty_count] = {18.2e-6, 18.7e-6, 18.3e-6};
+				cout << " . Computing L x F at mttbar = " << mttbar << " GeV for gg > 1S_0^[1]. (scale:result; expected) GeV^-2 = " << flush;
+				for (size_t i = 0; i < ScaleUncertainty_count; i++)
+				{
+					double Scale = ScaleUncertaintyFactor[i]*mt;
+					pConvolute.set_Scale(Scale);
+					void* argConvolute = &pConvolute;
+					result[i] = dsigmadmttbar(mttbar,argConvolute) / ImGFactor_singlet;
+					cout << "(" << result[i] << ";" << expected[i] << ")  " << flush;
+				}
+				cout << endl;
+				for (size_t i = 0; i < ScaleUncertainty_count; i++)
+				{
+					if (!approx(result[i],expected[i],0.1))
+					{
+						cout << "   !! Test failed !!" << endl;
+						count_error++;
+						break;
+					}
+				}
+			}
+			// gg > 1S_0^[8]
+			pConvolute.set_Scale(ScaleRenormalization);
+			pConvolute.setPID(pidg,pidg);
+			pConvolute.set_boundstate(0,0,8);
+			{
+				void* argConvolute = &pConvolute;
+				double result = dsigmadmttbar(mttbar,argConvolute) / ImGFactor_octet, expected = 55.8e-6;
+				cout << " .                                         gg > 1S_0^[8]. Result = " << result << " GeV^-2. Expect " << expected << " GeV^-2." << endl;
+				if (!approx(result,expected,0.1))
+				{
+					cout << "   !! Test failed !!" << endl;
+					count_error++;
+				}
+			}
+			// gg > 3S_1^[1]
+			pConvolute.setPID(pidg,pidg);
+			pConvolute.set_boundstate(1,1,1);
+			{
+				void* argConvolute = &pConvolute;
+				double result = dsigmadmttbar(mttbar,argConvolute) / ImGFactor_singlet, expected = 0.175e-6;
+				cout << " .                                         gg > 3S_1^[1]. Result = " << result << " GeV^-2. Expect " << expected << " GeV^-2." << endl;
+				if (!approx(result,expected,0.35))
+				{
+					cout << "   !! Test failed !!" << endl;
+					count_error++;
+				}
+			}
+			// gg > 3S_1^[8]
+			pConvolute.setPID(pidg,pidg);
+			pConvolute.set_boundstate(1,1,8);
+			{
+				void* argConvolute = &pConvolute;
+				double result = dsigmadmttbar(mttbar,argConvolute) / ImGFactor_octet, expected = 6.06e-6;
+				cout << " .                                         gg > 3S_1^[8]. Result = " << result << " GeV^-2. Expect " << expected << " GeV^-2." << endl;
+				if (!approx(result,expected,0.35))
+				{
+					cout << "   !! Test failed !!" << endl;
+					count_error++;
+				}
+			}
+			// qq > 1S_0^[1]
+			{
+				double result = 0., expected = 0.00664e-6;
+				for (size_t i = 0; i < pidquark_length; i++)
+				{
+					pConvolute.setPID(pidquark[i],-pidquark[i]);
+					pConvolute.set_boundstate(0,0,1);
+					{
+						void* argConvolute = &pConvolute;
+						result += dsigmadmttbar(mttbar,argConvolute) / ImGFactor_singlet;
+					}
+				}
+				cout << " .                                         qq > 1S_0^[1]. Result = " << result << " GeV^-2. Expect " << expected << " GeV^-2." << endl;
+				if (!approx(result,expected,0.1))
+				{
+					cout << "   !! Test failed !!" << endl;
+					count_error++;
+				}
+			}
+			// qq > 1S_0^[8]
+			{
+				double result = 0., expected = 0.0166e-6;
+				for (size_t i = 0; i < pidquark_length; i++)
+				{
+					pConvolute.setPID(pidquark[i],-pidquark[i]);
+					pConvolute.set_boundstate(0,0,8);
+					{
+						void* argConvolute = &pConvolute;
+						result += dsigmadmttbar(mttbar,argConvolute) / ImGFactor_octet;
+					}
+				}
+				cout << " .                                         qq > 1S_0^[8]. Result = " << result << " GeV^-2. Expect " << expected << " GeV^-2." << endl;
+				if (!approx(result,expected,0.1))
+				{
+					cout << "   !! Test failed !!" << endl;
+					count_error++;
+				}
+			}
+			// qq > 3S_1^[1]
+			{
+				double result = 0., expected = 0.;
+				for (size_t i = 0; i < pidquark_length; i++)
+				{
+					pConvolute.setPID(pidquark[i],-pidquark[i]);
+					pConvolute.set_boundstate(1,1,1);
+					{
+						void* argConvolute = &pConvolute;
+						result += dsigmadmttbar(mttbar,argConvolute) / ImGFactor_singlet;
+					}
+				}
+				cout << " .                                         qq > 3S_1^[1]. Result = " << result << " GeV^-2. Expect " << expected << " GeV^-2." << endl;
+				if (!approx(result,expected,0.2))
+				{
+					cout << "   !! Test failed !!" << endl;
+					count_error++;
+				}
+			}
+			// qq > 3S_1^[8]
+			{
+				double result = 0., expected = 21.7e-6;
+				for (size_t i = 0; i < pidquark_length; i++)
+				{
+					pConvolute.setPID(pidquark[i],-pidquark[i]);
+					pConvolute.set_boundstate(1,1,8);
+					{
+						void* argConvolute = &pConvolute;
+						result += dsigmadmttbar(mttbar,argConvolute) / ImGFactor_octet;
+					}
+				}
+				cout << " .                                         qq > 3S_1^[8]. Result = " << result << " GeV^-2. Expect " << expected << " GeV^-2." << endl;
+				if (!approx(result,expected,0.1))
+				{
+					cout << "   !! Test failed !!" << endl;
+					count_error++;
+				}
+			}
+			// gq > 1S_0^[1]
+			{
+				double result = 0., expected = -0.795e-6;
+				for (size_t i = 0; i < pidquark_length; i++)
+				{
+					pConvolute.setPID(pidg,pidquark[i]);
+					pConvolute.set_boundstate(0,0,1);
+					{
+						void* argConvolute = &pConvolute;
+						result += dsigmadmttbar(mttbar,argConvolute);
+					}
+					pConvolute.setPID(pidquark[i],pidg);
+					{
+						void* argConvolute = &pConvolute;
+						result += dsigmadmttbar(mttbar,argConvolute);
+					}
+				}
+				result /= ImGFactor_singlet;
+				cout << " .                                         gq > 1S_0^[1]. Result = " << result << " GeV^-2. Expect " << expected << " GeV^-2." << endl;
+				if (!approx(result,expected,0.1))
+				{
+					cout << "   !! Test failed !!" << endl;
+					count_error++;
+				}
+			}
+			// gq > 1S_0^[8]
+			{
+				double result = 0., expected = -1.99e-6;
+				for (size_t i = 0; i < pidquark_length; i++)
+				{
+					pConvolute.setPID(pidg,pidquark[i]);
+					pConvolute.set_boundstate(0,0,8);
+					{
+						void* argConvolute = &pConvolute;
+						result += dsigmadmttbar(mttbar,argConvolute);
+					}
+					pConvolute.setPID(pidquark[i],pidg);
+					{
+						void* argConvolute = &pConvolute;
+						result += dsigmadmttbar(mttbar,argConvolute);
+					}
+				}
+				result /= ImGFactor_octet;
+				cout << " .                                         gq > 1S_0^[8]. Result = " << result << " GeV^-2. Expect " << expected << " GeV^-2." << endl;
+				if (!approx(result,expected,0.2))
+				{
+					cout << "   !! Test failed !!" << endl;
+					count_error++;
+				}
+			}
+			// gq > 3S_1^[8]
+			{
+				double result = 0., expected = 3.99e-6;
+				for (size_t i = 0; i < pidquark_length; i++)
+				{
+					pConvolute.setPID(pidg,pidquark[i]);
+					pConvolute.set_boundstate(1,1,8);
+					{
+						void* argConvolute = &pConvolute;
+						result += dsigmadmttbar(mttbar,argConvolute);
+					}
+					pConvolute.setPID(pidquark[i],pidg);
+					{
+						void* argConvolute = &pConvolute;
+						result += dsigmadmttbar(mttbar,argConvolute);
+					}
+				}
+				result /= ImGFactor_octet;
+				cout << " .                                         gq > 3S_1^[8]. Result = " << result << " GeV^-2. Expect " << expected << " GeV^-2." << endl;
+				if (!approx(result,expected,0.2))
+				{
+					cout << "   !! Test failed !!" << endl;
+					count_error++;
+				}
+			}
+			
+		}
 
 		// Testing completed
 		if (count_error > 0)
 		{
-			cout << "                vvvvvvvvvvvvvvvvv" << endl;
+			cout << "              vvvvvvvvvvvvvvvvv" << endl;
 			cout << "[WARNING] >>> " << count_error << " test(s) failed. <<<" << endl;
-			cout << "                ^^^^^^^^^^^^^^^^^" << endl;
+			cout << "              ^^^^^^^^^^^^^^^^^" << endl;
 		}
 		else
 		{
@@ -389,6 +664,7 @@ int main() {
 		cout << "[INFO] Tests finshied (it took " << dif << " s) <" << endl << endl;
 	}
 
+	return 0;
 /*******************************************************************************	
 *									  *										   *
 *					COMPUTE TOPONIUM DIFF CROSS SECTION  		               *
@@ -412,8 +688,7 @@ int main() {
 	double s_parton = HUGE_VALF; // this is a placeholder and can take any value. Assign NAN to check if the program runs correctly (the result shouldn't be NAN)
 	struct ParamPDF pPDF = {pidg,pidg,ScaleFactorization,s_parton,s_hadron};
 	struct IntegratePDF iPDF = {pdf,pPDF,w1,RelativeError,MaxNumberSubintervals};
-	double integrateion_result_gg_1S01[3] = {0,0,0}, integrateion_result_gg_1S08[3] = {0,0,0}, integrateion_result_qq_3S18[3] = {0,0,0};
-	// double integration_result_noCgg[3] = {0,0,0}, integration_result_Cgg[3] = {0,0,0}, integration_result_Cgg2[3] = {0,0,0}, error;
+	double integrateion_result_gg_1S01[3] = {0,0,0}, integrateion_result_gg_1S08[3] = {0,0,0}, integrateion_result_qq_3S18[3] = {0,0,0}, integrateion_result_gq_1S01[3] = {0,0,0};
 	const string filename = OutputFolder + "/" + datestring + "/dist_mtt.dat", fileGreenFunction = OutputFolder + "/" + datestring + "/greenfunction.dat";
 	cout << " * Exporting m_ttbar to " << filename << ". " << flush;
 	ofstream f(filename.c_str());
@@ -426,8 +701,8 @@ int main() {
 	for (double mttbar = mttbarmin; mttbar <= mttbarmax+mttbarstep*0.5; mttbar += mttbarstep)
 	{	
 		s_parton = mypow(mttbar,2);
-		double dsigmadmttbar_gg_1S01[3] = {0,0,0}, dsigmadmttbar_gg_1S08[3] = {0,0,0}, dsigmadmttbar_qq_3S18[3] = {0,0,0};
-		// double res_mtt_noCgg[3], res_mtt_Cgg[3], res_mtt_Cgg2[3];
+		double dsigmadmttbar_gg_1S01[3] = {0,0,0}, dsigmadmttbar_gg_1S08[3] = {0,0,0}, dsigmadmttbar_qq_3S18[3] = {0,0,0}, dsigmadmttbar_gq_1S01[3] = {0,0,0};
+		cout << "[DEBUG] mttbar = " << mttbar; // DEBUG
 		for (size_t i_scale = 0; i_scale < 3; i_scale++)
 		{
 			iPDF.param.s_parton = s_parton;
@@ -435,6 +710,7 @@ int main() {
 			pXsection.TopDecayWidth = TopDecayWidth;
 			struct IntegrateXsection iXsection = {"",pXsection,w1,NAN,NAN,"",RelativeError,MaxNumberSubintervals};
 			iPDF.param.ScaleFactorization = ScaleFactorization * ScaleUncertaintyFactor[i_scale];
+			iXsection.workspace2 = w2;
 			struct ParamConvolute1D pConvolute(iPDF,iXsection);
 			void* argConvolute = &pConvolute;
 
@@ -445,7 +721,7 @@ int main() {
 			pConvolute.iXsection.param.BoundStateSpin = 0;
 			pConvolute.iXsection.param.BoundStateJ = 0;
 			argConvolute = &pConvolute;
-			dsigmadmttbar_gg_1S01[i_scale] = f_PDF_xsection(s_parton,argConvolute)*invGeV2topb;
+			dsigmadmttbar_gg_1S01[i_scale] = dsigmadmttbar(mttbar,argConvolute);
 
 			// gg > T(S=0,J=0,octet)
 			pConvolute.setPID(pidg,pidg);
@@ -453,25 +729,50 @@ int main() {
 			pConvolute.iXsection.param.BoundStateSpin = 0;
 			pConvolute.iXsection.param.BoundStateJ = 0;
 			argConvolute = &pConvolute;
-			dsigmadmttbar_gg_1S08[i_scale] = f_PDF_xsection(s_parton,argConvolute)*invGeV2topb;
+			dsigmadmttbar_gg_1S08[i_scale] = 0; //dsigmadmttbar(mttbar,argConvolute);
+			if (i_scale == 1)
+			{
+				cout << ", dL[" << pConvolute.iPDF.param.pid1 << "," << pConvolute.iPDF.param.pid2 << "]/dtau = " << Integrated_x1_PDF_Product(pConvolute.iPDF.workspace,pConvolute.iPDF.pdf,pConvolute.iPDF.param.pid1,pConvolute.iPDF.param.pid2,s_parton,pConvolute.iPDF.param.s_hadron,pConvolute.iPDF.param.ScaleFactorization,RelativeError,pConvolute.iPDF.IntegrationRelativeError,pConvolute.iPDF.NumberOfSubintervals); // DEBUG
+			}
 
 			// qq > T(S=0,J=0,octet)
 			dsigmadmttbar_qq_3S18[i_scale] = 0;
 			pConvolute.iXsection.param.BoundStateColorConfig = 8;
 			pConvolute.iXsection.param.BoundStateSpin = 1;
 			pConvolute.iXsection.param.BoundStateJ = 1;
-			for (size_t i_quark = 0; i_quark < 4; i_quark++)
+			for (size_t i_quark = 0; i_quark < pidq_length; i_quark++)
 			{
 				pConvolute.setPID(pidq[i_quark],-pidq[i_quark]);
 				argConvolute = &pConvolute;
-				dsigmadmttbar_qq_3S18[i_scale] += f_PDF_xsection(s_parton,argConvolute)*invGeV2topb;
+				dsigmadmttbar_qq_3S18[i_scale] += 0;//dsigmadmttbar(mttbar,argConvolute);
+				if (i_scale == 1)
+				{
+					cout << ", dL[" << pConvolute.iPDF.param.pid1 << "," << pConvolute.iPDF.param.pid2 << "]/dtau = " << Integrated_x1_PDF_Product(pConvolute.iPDF.workspace,pConvolute.iPDF.pdf,pConvolute.iPDF.param.pid1,pConvolute.iPDF.param.pid2,s_parton,pConvolute.iPDF.param.s_hadron,pConvolute.iPDF.param.ScaleFactorization,RelativeError,pConvolute.iPDF.IntegrationRelativeError,pConvolute.iPDF.NumberOfSubintervals); // DEBUG
+				}
+			}
+
+			// gq > T(S=0,J=0,singlet)
+			dsigmadmttbar_gq_1S01[i_scale] = 0;
+			pConvolute.iXsection.param.BoundStateColorConfig = 1;
+			pConvolute.iXsection.param.BoundStateSpin = 0;
+			pConvolute.iXsection.param.BoundStateJ = 0;
+			for (size_t i_quark = 0; i_quark < pidq_length; i_quark++)
+			{
+				pConvolute.setPID(pidg,pidq[i_quark]);
+				argConvolute = &pConvolute;
+				dsigmadmttbar_gq_1S01[i_scale] += dsigmadmttbar(mttbar,argConvolute);
+				if (i_scale == 1)
+				{
+					cout << ", dL[" << pConvolute.iPDF.param.pid1 << "," << pConvolute.iPDF.param.pid2 << "]/dtau = " << Integrated_x1_PDF_Product(pConvolute.iPDF.workspace,pConvolute.iPDF.pdf,pConvolute.iPDF.param.pid1,pConvolute.iPDF.param.pid2,s_parton,pConvolute.iPDF.param.s_hadron,pConvolute.iPDF.param.ScaleFactorization,RelativeError,pConvolute.iPDF.IntegrationRelativeError,pConvolute.iPDF.NumberOfSubintervals); // DEBUG
+				}
 			}
 			
 			iPDF.param.ScaleFactorization = ScaleFactorization;
 		}
+		cout << endl; // DEBUG
 		
 		// Write to file
-		f << mttbar << "\t\t\t\t" << dsigmadmttbar_gg_1S01[0] << "\t" << dsigmadmttbar_gg_1S01[1] << "\t" << dsigmadmttbar_gg_1S01[2] << "\t\t\t\t" << dsigmadmttbar_gg_1S08[0] << "\t" << dsigmadmttbar_gg_1S08[1] << "\t" << dsigmadmttbar_gg_1S08[2] << "\t\t\t\t" << dsigmadmttbar_qq_3S18[0] << "\t" << dsigmadmttbar_qq_3S18[1] << "\t" << dsigmadmttbar_qq_3S18[2] << endl;
+		f << mttbar << "\t\t\t\t" << dsigmadmttbar_gg_1S01[0] << "\t" << dsigmadmttbar_gg_1S01[1] << "\t" << dsigmadmttbar_gg_1S01[2] << "\t\t\t\t" << dsigmadmttbar_gg_1S08[0] << "\t" << dsigmadmttbar_gg_1S08[1] << "\t" << dsigmadmttbar_gg_1S08[2] << "\t\t\t\t" << dsigmadmttbar_qq_3S18[0] << "\t" << dsigmadmttbar_qq_3S18[1] << "\t" << dsigmadmttbar_qq_3S18[2] << "\t\t\t\t" << dsigmadmttbar_gq_1S01[0] << "\t" << dsigmadmttbar_gq_1S01[1] << "\t" << dsigmadmttbar_gq_1S01[2] << endl;
 		double CF = 4./3., CA = 3., alphaS = pdf->alphasQ(ScaleRenormalization), SoftScaleRenormalization = mt*CF*alphaS, alphaS_Soft = pdf->alphasQ(SoftScaleRenormalization);
 		fGreenFunction << mttbar << "\t\t\t\t" << ImGreenFunction(mttbar, mt, TopDecayWidth, alphaS_Soft, CF, CA, 1) << "\t\t\t\t" << ImGreenFunction(mttbar, mt, TopDecayWidth, alphaS_Soft, CF, CA, 8)  << endl;
 		// Add up all bin (total should be consistent with total xsection)
@@ -496,7 +797,14 @@ int main() {
 	cout << "[INFO] Computation finshied (it took " << dif << " s)" << endl << endl;
 
 	// Wrap up
-	cout << "* Note: alphaS_soft currently has no scale uncertainty band " << endl;
+	cout << "* Note: . alphaS_soft currently has no scale uncertainty band " << endl;
+	cout << "        . Check that the other toponium papers are doing something similar." << endl;
+	cout << "        . Go through: Peskin ch 17, 0812.0919, 1003.5827, hep-ph/9707223, 1207.2389." << endl;
+	cout << "        . Can we write these in a way that can be used in MC event generator?" << endl;
+	cout << "        . Has initial state radiation been already included in PDF?" << endl;
+	cout << "        . What invariant mass to use?" << endl;
+	cout << "        . What to do to solve: test on all scaleing available + extract pdf to check by hand." << endl;
+	cout << "        . The SM prediction has no wavefunction effects, including Sommerfeld enhancement. These should be included in toponium, although they are not. See eq. 16 in 2411.18962." << endl;
 	cout << ".................. Exiting .................." << endl;
 	delete pdf;
 	gsl_integration_workspace_free (w1);

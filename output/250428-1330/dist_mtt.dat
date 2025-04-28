@@ -1,0 +1,4 @@
+# Compute m_ttbar distribution dxsection/dm_ttbar (pb/GeV) of PP > ttbar. Energy and mass in GeV, xsection in pb.
+# Parameters: alphaS(ScaleR) = 0.107655, m_t = 172.5, PDFset = NNPDF31_nnlo_as_0118_notop, PDFmember = 0, ScaleF = 172.5, ScaleR = 172.5, sqrt(s_hadron) = 13000, MZ = 91.2, vev = 246.22, RelativeError = 0.01, DynamicScalingChoice = 0, ScaleUncertainty = (0.5,2)
+# m_ttbar (GeV) 				 gg > singlet 	 [lower , 	 upper] 				 gg > octet 	 [lower , 	 upper] 				 qq > octet 	 [lower , 	 upper]
+360				0	0	0				0	0	0				0	0	0				-0.00994217	0.0178446	-0.0241543

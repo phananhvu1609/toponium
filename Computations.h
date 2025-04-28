@@ -55,6 +55,7 @@ struct ParamPDF {
     double ScaleFactorization; // GeV
     double s_parton; // GeV
     double s_hadron; // GeV
+    double integratedPDFProduct_subtract = 0; // used in f_FxL_2to2 to subtract the integrated PDF product from the xsection
 };
 struct IntegratePDF {
     LHAPDF::PDF* pdf;
@@ -62,6 +63,7 @@ struct IntegratePDF {
     gsl_integration_workspace* workspace;
     double IntegrationRelativeError = NAN;    // if NAN, the default IntegrationRelativeError is used
     size_t NumberOfSubintervals = 0;    // if 0, the default NumberOfSubintervals is used
+    double InternalError = 1e-5;    // if NAN, the default IntegrationRelativeError is used
 };
 struct ParamXsection {
     int pid1;
@@ -125,6 +127,30 @@ struct ParamConvolute1D {
         iPDF.param.pid2 = pid2;
         iXsection.param.pid2 = pid2;
     }
+    void set_s_parton(double s_parton)
+    {
+        iPDF.param.s_parton = s_parton;
+        iXsection.param.s_parton = s_parton;
+    }
+    void set_mtt(double mtt)
+    {
+        iXsection.param.mtt = mtt;
+    }
+    void set_boundstate(int BoundStateSpin, int BoundStateJ, int BoundStateColorConfig)
+    {
+        iXsection.param.BoundStateColorConfig = BoundStateColorConfig;
+        iXsection.param.BoundStateSpin = BoundStateSpin;
+        iXsection.param.BoundStateJ = BoundStateJ;
+    }
+    void set_TopDecayWidth(double TopDecayWidth)
+    {
+        iXsection.param.TopDecayWidth = TopDecayWidth;
+    }
+    void set_Scale(double Scale)
+    {
+        iPDF.param.ScaleFactorization = Scale;
+        iXsection.param.ScaleRenormalization = Scale;
+    }
 };
 struct ParamPDFProduct {
     LHAPDF::PDF* pdf;
@@ -158,6 +184,10 @@ double Convolute_PDF_dxsection_dpT(IntegratePDF iPDF, IntegrateXsection iXsectio
 // Integrate over dhadronicxsection_dsparton over s_parton
 double xsection_hadron(IntegratePDF iPDF, IntegrateXsection iXsection, double &error, gsl_integration_workspace* workspace, double s_min = 0, double IntegrationRelativeError = 1e-7, size_t NumberOfSubintervals = 1000, double inp_s_max = 0);
 
+// ============ For toponium ==============================================
+
+// differential cross section for P1 + P2 -> toponium(or ttbar) + X, in pb/GeV. mttbar in GeV
+double dsigmadmttbar(double mttbar, void *args);
 
 #endif
 

@@ -123,10 +123,10 @@ double PDF_times_xsection(IntegratePDF iPDF, IntegrateXsection iXsection)
 			}
 			xsection = xsection_ggttTree(iXsection.workspace,paramXsection.alphaS,paramXsection.mt,s_parton,error,iXsection.MinSecondKinematicVariable,iXsection.MaxSecondKinematicVariable,iXsection.IntegrationRelativeError,iXsection.NumberOfSubintervals);
 		}
-		else if (name_f_xsection == "dxsect_dmToponium_partonic")
-		{
-			xsection = dxsect_dmToponium_partonic(paramXsection.pid1,paramXsection.pid2,s_parton,paramXsection.mtt,paramPDF.ScaleFactorization,paramXsection.ScaleRenormalization,paramXsection.mt,paramXsection.TopDecayWidth,paramXsection.BoundStateSpin,paramXsection.BoundStateJ,paramXsection.BoundStateColorConfig,iPDF.pdf);
-		}
+		// else if (name_f_xsection == "dxsect_dmToponium_partonic")
+		// {
+		// 	xsection = dxsect_dmToponium_partonic(paramXsection.pid1,paramXsection.pid2,s_parton,paramXsection.mtt,paramPDF.ScaleFactorization,paramXsection.ScaleRenormalization,paramXsection.mt,paramXsection.TopDecayWidth,paramXsection.BoundStateSpin,paramXsection.BoundStateJ,paramXsection.BoundStateColorConfig,iPDF.pdf);
+		// }
 		else if (name_f_xsection == "")
 		{
 			xsection = 1;
@@ -363,4 +363,95 @@ double f_dxsection_dy_ggttTree(double y, void * params)
 	double* param = (double*)params;
 	double alphaS = param[0], mt = param[1], s = param[2];
 	return dxsection_dy_ggttTree(alphaS, mt, s, y);
+}
+
+
+
+/********************************************************************************	
+*									  *										    *
+*								  For toponium								    *
+*									  *									        *
+********************************************************************************/
+// GSL convention for Fhard_2to2*luminosity
+double f_FxL_2to2(double z, void *args)
+{
+	struct ParamConvolute1D* params = (ParamConvolute1D*)args;
+	struct IntegratePDF iPDF = params->iPDF;
+	struct IntegrateXsection iXsection = params->iXsection;
+	double mttbar = iXsection.param.mtt, s_parton = mypow(mttbar,2)/z;
+	iPDF.param.s_parton = s_parton;
+	iXsection.param.s_parton = s_parton;
+	auto paramPDF = iPDF.param;
+	auto paramXsection = iXsection.param;
+	double error, alphaS = iPDF.pdf->alphasQ(paramXsection.ScaleRenormalization);
+	
+	double integratedPDFProduct = Integrated_x1_PDF_Product(iPDF.workspace,iPDF.pdf,paramPDF.pid1,paramPDF.pid2,s_parton,paramPDF.s_hadron,paramPDF.ScaleFactorization,error,iPDF.IntegrationRelativeError,iPDF.NumberOfSubintervals);
+	double integratedPDFProduct_subtract = Integrated_x1_PDF_Product(iPDF.workspace,iPDF.pdf,paramPDF.pid1,paramPDF.pid2,mypow(mttbar,2),paramPDF.s_hadron,paramPDF.ScaleFactorization,error,iPDF.IntegrationRelativeError,iPDF.NumberOfSubintervals);
+	double CF = 4./3.;	// Casimir operator for fundamental representation
+	double CA = 3.;	// Casimir operator for adjoint representation
+	double TF = 1./2.;
+	double Fhard_2to2 = F_hardfactor(paramPDF.pid1, paramPDF.pid2, s_parton, mttbar, alphaS, paramXsection.ScaleRenormalization, paramPDF.ScaleFactorization, paramXsection.BoundStateSpin, paramXsection.BoundStateJ, paramXsection.BoundStateColorConfig, CF, CA, TF, false, false);
+	double Fhard_2to2_subtract = F_hardfactor(paramPDF.pid1, paramPDF.pid2, s_parton, mttbar, alphaS, paramXsection.ScaleRenormalization, paramPDF.ScaleFactorization, paramXsection.BoundStateSpin, paramXsection.BoundStateJ, paramXsection.BoundStateColorConfig, CF, CA, TF, false, true);
+	return 1./mypow(z,2) * (integratedPDFProduct * Fhard_2to2) - integratedPDFProduct_subtract * Fhard_2to2_subtract;
+}
+
+// differential cross section for P1 + P2 -> toponium(or ttbar) + X, in pb/GeV. mttbar in GeV
+double dsigmadmttbar(double mttbar, void *args)
+{
+	struct ParamConvolute1D* params = (ParamConvolute1D*)args;
+	struct IntegratePDF iPDF = params->iPDF;
+	struct IntegrateXsection iXsection = params->iXsection;
+	double s_parton = mypow(mttbar,2), error;
+	iPDF.param.s_parton = s_parton;
+	iXsection.param.s_parton = s_parton;
+	auto paramPDF = iPDF.param;
+	auto paramXsection = iXsection.param;
+	auto pdf = iPDF.pdf;
+	int pid1 = paramPDF.pid1, pid2 = paramPDF.pid2, boundstateSpin = paramXsection.BoundStateSpin, boundstateJ = paramXsection.BoundStateJ, boundstateColorConfig = paramXsection.BoundStateColorConfig;
+	double s_hadron = paramPDF.s_hadron, mt = paramXsection.mt, ScaleRenormalization = paramXsection.ScaleRenormalization, ScaleFactorization = paramPDF.ScaleFactorization, TopDecayWidth = paramXsection.TopDecayWidth;
+
+	// Integrate 1/x1*PDF(x1)*PDF(s_parton/(s_hadron*x1)) over x1 (from mttbar^2/s_hadron to 1)
+	double integratedPDFProduct = 1;
+	if (isnan(iPDF.IntegrationRelativeError) || (iPDF.NumberOfSubintervals <= 0))
+	{
+		integratedPDFProduct = Integrated_x1_PDF_Product(iPDF.workspace,iPDF.pdf,paramPDF.pid1,paramPDF.pid2,s_parton,paramPDF.s_hadron,paramPDF.ScaleFactorization,error);
+	}
+	else
+	{
+		integratedPDFProduct = Integrated_x1_PDF_Product(iPDF.workspace,iPDF.pdf,paramPDF.pid1,paramPDF.pid2,s_parton,paramPDF.s_hadron,paramPDF.ScaleFactorization,error,iPDF.IntegrationRelativeError,iPDF.NumberOfSubintervals);
+	}
+
+	// 2 -> 1 hard
+	double alphaS = pdf->alphasQ(ScaleRenormalization);
+	double CF = 4./3.;	// Casimir operator for fundamental representation
+	double CA = 3.;	// Casimir operator for adjoint representation
+	double TF = 1./2.;
+	bool is_two_to_one = true, is_subtract = false;	// is_two_to_one is true for terms with delta(1-z) and false for terms without. Subtract is for terms added to subtract 1/(1-z) divergence
+	double Fhard_2to1 = F_hardfactor(pid1, pid2, s_parton, mttbar, alphaS, ScaleRenormalization, ScaleFactorization, boundstateSpin, boundstateJ, boundstateColorConfig, CF, CA, TF, is_two_to_one, is_subtract);
+	double FxL_2to1 = Fhard_2to1 * integratedPDFProduct * invGeV2topb;
+
+	// 2 -> 2 hard
+	double zmin = mypow(mttbar,2)/s_hadron, zmax = 1 - iPDF.InternalError;
+	iPDF.param.integratedPDFProduct_subtract = integratedPDFProduct;
+	struct ParamConvolute1D pConvolute(iPDF,iXsection);
+	pConvolute.set_mtt(mttbar);
+	auto workspace = iXsection.workspace2;
+	double result;
+	int run_status = gsl_integration_1D(workspace,f_FxL_2to2,zmin,zmax,&pConvolute,result,error,iXsection.IntegrationRelativeError/10,iXsection.NumberOfSubintervals);
+	// Check convergence
+	if (run_status != GSL_SUCCESS)
+	{
+		cout << "[WARNING]    Result of 2 -> 2 hard(pdf," << zmin << "," << zmax << "," << iXsection.param.alphaS << "," << iXsection.param.mt << "," << s_hadron << "," << iXsection.param.pid1 << "," << iXsection.param.pid2 << ") = " << result << " +- " << error << " is unreliable. !!!" << endl;
+	}
+	double FxL_2to2 = result * invGeV2topb;
+
+
+	// return f_PDF_xsection(mypow(mttbar,2),args)*invGeV2topb;
+	double SoftScaleRenormalization = mt*CF*alphaS;
+	double alphaS_Soft = pdf->alphasQ(SoftScaleRenormalization);
+	double ImG = ImGreenFunction(mttbar, mt, TopDecayWidth, alphaS_Soft, CF, CA, boundstateColorConfig);
+
+	double FxL = FxL_2to1 + FxL_2to2;
+	
+    return 1./s_hadron * mttbar * FxL * ImG / mypow(mt,2);
 }
