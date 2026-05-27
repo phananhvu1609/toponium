@@ -4,19 +4,19 @@
 # . If a line for a [PARAMETER] is not provided, the default value will be taken.
 ##########################################################################################
 # ======================================== General setup
-PDFSetName              NNPDF31_nnlo_as_0118_notop
+PDFSetName              NNPDF31_nnlo_as_0118
 PDFmember               0
 Order                   NLO
 # ======================================== Configuration for output (mttbar in GeV) 335,380
 OutputFolder            output
-mttbarmin               360
-mttbarmax               360
+mttbarmin               335
+mttbarmax               380
 mttbarstep              1
 # ======================================== mt (in GeV), TopDecayWidth (in GeV), muF and muR (in mt), muF goes into PDF, muR goes into loop integration. Default value taken in accordance with arXiv:1701.06228. scales are overwritten by dynamicscalechoice
 Mtop                    172.5
 TopDecayWidth           1.326
-muF                     1.0
-muR                     1.0
+muF                     2.0
+muR                     2.0
 # ======================================== Other SM physics parameters (energy in GeV, alphaS at MZ, alphaS is overwritten by PDF)
 EbeamCM                 6500
 alphaS                  0.118

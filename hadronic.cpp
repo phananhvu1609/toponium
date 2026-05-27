@@ -340,15 +340,15 @@ int main() {
 				f << x << " " << xf/x << endl;
 			}
 			f.close();
-			ofstream f2(filename2.c_str());
-			f2 << "# s_parton \t integrated f" << endl;
-			for (double mtt = 300.; mtt <= sqrt(s_hadron); mtt += (mtt < 400. ? 1e-2 : mtt < 1000 ? 1e-1 : 1)) {
-				double s_parton = mypow(mtt,2);
-				double error;
-				double result = Integrated_x1_PDF_Product(w2,pdf,pid,pid,s_parton,s_hadron,sqrt(q2),error,RelativeError,MaxNumberSubintervals);
-				f2 << s_parton << " " << result << endl;
-			}
-			f2.close();
+			// ofstream f2(filename2.c_str());
+			// f2 << "# s_parton \t integrated f" << endl;
+			// for (double mtt = 300.; mtt <= sqrt(s_hadron); mtt += (mtt < 400. ? 1e-2 : mtt < 1000 ? 1e-1 : 1)) {
+			// 	double s_parton = mypow(mtt,2);
+			// 	double error;
+			// 	double result = Integrated_x1_PDF_Product(w2,pdf,pid,pid,s_parton,s_hadron,sqrt(q2),error,RelativeError,MaxNumberSubintervals);
+			// 	f2 << s_parton << " " << result << endl;
+			// }
+			// f2.close();
 		}
 
 
@@ -664,7 +664,7 @@ int main() {
 		cout << "[INFO] Tests finshied (it took " << dif << " s) <" << endl << endl;
 	}
 
-	return 0;
+	
 /*******************************************************************************	
 *									  *										   *
 *					COMPUTE TOPONIUM DIFF CROSS SECTION  		               *
@@ -700,9 +700,12 @@ int main() {
 
 	for (double mttbar = mttbarmin; mttbar <= mttbarmax+mttbarstep*0.5; mttbar += mttbarstep)
 	{	
+		if (mttbar == 2*mt)
+		{
+			mttbar = 2*mt*(1 - InternalRelativeError);	// avoid singularity at mttbar = 2*mt
+		}
 		s_parton = mypow(mttbar,2);
 		double dsigmadmttbar_gg_1S01[3] = {0,0,0}, dsigmadmttbar_gg_1S08[3] = {0,0,0}, dsigmadmttbar_qq_3S18[3] = {0,0,0}, dsigmadmttbar_gq_1S01[3] = {0,0,0};
-		cout << "[DEBUG] mttbar = " << mttbar; // DEBUG
 		for (size_t i_scale = 0; i_scale < 3; i_scale++)
 		{
 			iPDF.param.s_parton = s_parton;
@@ -729,26 +732,18 @@ int main() {
 			pConvolute.iXsection.param.BoundStateSpin = 0;
 			pConvolute.iXsection.param.BoundStateJ = 0;
 			argConvolute = &pConvolute;
-			dsigmadmttbar_gg_1S08[i_scale] = 0; //dsigmadmttbar(mttbar,argConvolute);
-			if (i_scale == 1)
-			{
-				cout << ", dL[" << pConvolute.iPDF.param.pid1 << "," << pConvolute.iPDF.param.pid2 << "]/dtau = " << Integrated_x1_PDF_Product(pConvolute.iPDF.workspace,pConvolute.iPDF.pdf,pConvolute.iPDF.param.pid1,pConvolute.iPDF.param.pid2,s_parton,pConvolute.iPDF.param.s_hadron,pConvolute.iPDF.param.ScaleFactorization,RelativeError,pConvolute.iPDF.IntegrationRelativeError,pConvolute.iPDF.NumberOfSubintervals); // DEBUG
-			}
+			dsigmadmttbar_gg_1S08[i_scale] = dsigmadmttbar(mttbar,argConvolute);
 
-			// qq > T(S=0,J=0,octet)
+			// qq > T(S=1,J=1,octet)
 			dsigmadmttbar_qq_3S18[i_scale] = 0;
 			pConvolute.iXsection.param.BoundStateColorConfig = 8;
 			pConvolute.iXsection.param.BoundStateSpin = 1;
 			pConvolute.iXsection.param.BoundStateJ = 1;
-			for (size_t i_quark = 0; i_quark < pidq_length; i_quark++)
+			for (size_t i_quark = 0; i_quark < pidquark_length; i_quark++)
 			{
-				pConvolute.setPID(pidq[i_quark],-pidq[i_quark]);
+				pConvolute.setPID(pidquark[i_quark],-pidquark[i_quark]);
 				argConvolute = &pConvolute;
-				dsigmadmttbar_qq_3S18[i_scale] += 0;//dsigmadmttbar(mttbar,argConvolute);
-				if (i_scale == 1)
-				{
-					cout << ", dL[" << pConvolute.iPDF.param.pid1 << "," << pConvolute.iPDF.param.pid2 << "]/dtau = " << Integrated_x1_PDF_Product(pConvolute.iPDF.workspace,pConvolute.iPDF.pdf,pConvolute.iPDF.param.pid1,pConvolute.iPDF.param.pid2,s_parton,pConvolute.iPDF.param.s_hadron,pConvolute.iPDF.param.ScaleFactorization,RelativeError,pConvolute.iPDF.IntegrationRelativeError,pConvolute.iPDF.NumberOfSubintervals); // DEBUG
-				}
+				dsigmadmttbar_qq_3S18[i_scale] += dsigmadmttbar(mttbar,argConvolute);
 			}
 
 			// gq > T(S=0,J=0,singlet)
@@ -756,20 +751,15 @@ int main() {
 			pConvolute.iXsection.param.BoundStateColorConfig = 1;
 			pConvolute.iXsection.param.BoundStateSpin = 0;
 			pConvolute.iXsection.param.BoundStateJ = 0;
-			for (size_t i_quark = 0; i_quark < pidq_length; i_quark++)
+			for (size_t i_quark = 0; i_quark < pidquark_length; i_quark++)
 			{
-				pConvolute.setPID(pidg,pidq[i_quark]);
+				pConvolute.setPID(pidg,pidquark[i_quark]);
 				argConvolute = &pConvolute;
 				dsigmadmttbar_gq_1S01[i_scale] += dsigmadmttbar(mttbar,argConvolute);
-				if (i_scale == 1)
-				{
-					cout << ", dL[" << pConvolute.iPDF.param.pid1 << "," << pConvolute.iPDF.param.pid2 << "]/dtau = " << Integrated_x1_PDF_Product(pConvolute.iPDF.workspace,pConvolute.iPDF.pdf,pConvolute.iPDF.param.pid1,pConvolute.iPDF.param.pid2,s_parton,pConvolute.iPDF.param.s_hadron,pConvolute.iPDF.param.ScaleFactorization,RelativeError,pConvolute.iPDF.IntegrationRelativeError,pConvolute.iPDF.NumberOfSubintervals); // DEBUG
-				}
 			}
 			
 			iPDF.param.ScaleFactorization = ScaleFactorization;
 		}
-		cout << endl; // DEBUG
 		
 		// Write to file
 		f << mttbar << "\t\t\t\t" << dsigmadmttbar_gg_1S01[0] << "\t" << dsigmadmttbar_gg_1S01[1] << "\t" << dsigmadmttbar_gg_1S01[2] << "\t\t\t\t" << dsigmadmttbar_gg_1S08[0] << "\t" << dsigmadmttbar_gg_1S08[1] << "\t" << dsigmadmttbar_gg_1S08[2] << "\t\t\t\t" << dsigmadmttbar_qq_3S18[0] << "\t" << dsigmadmttbar_qq_3S18[1] << "\t" << dsigmadmttbar_qq_3S18[2] << "\t\t\t\t" << dsigmadmttbar_gq_1S01[0] << "\t" << dsigmadmttbar_gq_1S01[1] << "\t" << dsigmadmttbar_gq_1S01[2] << endl;
@@ -781,6 +771,16 @@ int main() {
 			integrateion_result_gg_1S08[i_scale] += dsigmadmttbar_gg_1S08[i_scale]*mttbarstep;
 			integrateion_result_qq_3S18[i_scale] += dsigmadmttbar_qq_3S18[i_scale]*mttbarstep;
 			integrateion_result_gg_1S01[i_scale] += dsigmadmttbar_gg_1S01[i_scale]*mttbarstep;
+		}
+
+		// repeat again at mttbar = 2*mt to sample both sides of the step
+		if (mttbar == 2*mt*(1 - InternalRelativeError))
+		{
+			mttbar = 2*mt*(1 + InternalRelativeError) - mttbarstep;	// avoid singularity at mttbar = 2*mt
+		}
+		else if (mttbar == 2*mt*(1 + InternalRelativeError))
+		{
+			mttbar = 2*mt;	// avoid singularity at mttbar = 2*mt
 		}
 	}
 	f_result << "# Integrated xsection from mtt distribution        (gg>1S01) \t" << integrateion_result_gg_1S01[0] << " [" << integrateion_result_gg_1S01[1] << "," << integrateion_result_gg_1S01[2] << "] pb; (gg>1S08) \t" << integrateion_result_gg_1S08[0] << " [" << integrateion_result_gg_1S08[1] << "," << integrateion_result_gg_1S08[2] << "] pb; (qq>3S18) \t" << integrateion_result_qq_3S18[0] << " [" << integrateion_result_qq_3S18[1] << "," << integrateion_result_qq_3S18[2] << "] pb." << endl;

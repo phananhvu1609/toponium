@@ -622,7 +622,7 @@ double F_hardfactor(int pid1, int pid2, double s_parton, double mtt, double alph
 	double replace_s_parton_by_mtt = 1;
 	if (is_subtract)
 	{
-		replace_s_parton_by_mtt = 1/z; // when subtract, the 1/(3*s_parton) term should be replaced by 1/(3*mtt^2)
+		replace_s_parton_by_mtt = 1./z; // when subtract, the 1/(3*s_parton) term should be replaced by 1/(3*mtt^2)
 	}
 
 	return N*mypow(M_PI,2)*mypow(alphaS,2)/(3*s_parton) * (1+alphaS*Ch/M_PI) * (delta + alphaS/M_PI*(Acollinear + Anoncollinear)*replace_s_parton_by_mtt);
@@ -650,6 +650,16 @@ double ImGreenFunction(double mtt, double mt, double TopDecayWidth, double alpha
 	G = mypow(mt,2) * v/(4*M_PI) * (I + alphaS*C/v * (I*M_PI/2. - log(v)));
 	// return mypow(mt,2) * ( 1./(4*M_PI)*abs_v*cos(argv) + alphaS*C/8. - alphaS*C/(4*M_PI)*argv);
 	return imag(G);
+	// Thomas' formula
+	if (mtt > 2*mt)
+	{
+		double vel = sqrt((mtt - 2*mt)/mt);
+		return mypow(mt,2) / (4*M_PI) * M_PI*alphaS*CF/(1. - exp(-M_PI*alphaS*CF/vel));
+	}
+	else
+	{
+		return 0;
+	}
 }
 
 // double dxsect_dmToponium_partonic(int pid1, int pid2, double s_parton, double mtt, double ScaleRenormalization, double ScaleFactorization, double mt, double TopDecayWidth, double boundstateSpin, double boundstateJ, int boundstateColorConfig, LHAPDF::PDF* pdf)

@@ -1,0 +1,4 @@
+# Parameters: alphaS(ScaleR) = 0.0983189, m_t = 172.5, PDFset = NNPDF31_nnlo_as_0118, PDFmember = 0, ScaleF = 345, ScaleR = 345, sqrt(s_hadron) = 13000, MZ = 91.2, vev = 246.22, RelativeError = 0.01, ScaleUncertainty = (0.5,2)
+# Results of toponium effect to hadronic xsection
+
+# Integrated xsection from mtt distribution        (gg>1S01) 	33.5172 [32.2274,33.2708] pb; (gg>1S08) 	99.1065 [98.7439,95.9591] pb; (qq>3S18) 	41.4344 [39.8203,41.4375] pb.

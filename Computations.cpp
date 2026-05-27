@@ -224,14 +224,14 @@ double f_PDF_product(double x1, void *args)
 	// Compute
 	double f1 = (pdf->xfxQ2(params->pid1,x1,Q2)) / x1;
 	double f2 = (pdf->xfxQ2(params->pid2,x2,Q2)) / x2;
-	if (f1 < 0)
-	{
-		f1 = 0;
-	}
-	if (f2 < 0)
-	{
-		f2 = 0;
-	}
+	// if (f1 < 0)
+	// {
+	// 	f1 = 0;
+	// }
+	// if (f2 < 0)
+	// {
+	// 	f2 = 0;
+	// }
 	
 	
 	return 1./x1 * f1 * f2;
